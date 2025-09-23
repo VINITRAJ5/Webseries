@@ -1,19 +1,50 @@
-import { useState, useEffect } from "react";
-//import ReactDOM from "react-dom/client";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { auth } from "../Utils/firebase";
+import { addUser, removeUser } from "../Utils/userSlice";
 
-export default function Browse() {
-  const [count, setCount] = useState(0);
-  const [calculation, setCalculation] = useState(0);
+const Browse = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const user = useSelector((store) => store.user);
+
+  const handleSignOut = () => {
+    signOut(auth)
+      .then(() => navigate("/"))
+      .catch(() => navigate("/error"));
+  };
 
   useEffect(() => {
-    setCalculation(() => count * 2);
-  }, [count]); // <- add the count variable here
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const { uid, email, displayName, photoURL } = user;
+        dispatch(
+          addUser({
+            uid,
+            email,
+            displayName,
+            photoURL,
+          })
+        );
+        navigate("/browse");
+      } else {
+        dispatch(removeUser());
+        navigate("/");
+      }
+    });
+
+    return () => unsubscribe(); // ✅ cleanup
+  }, [dispatch, navigate]);
 
   return (
-    <>
-      <p>Count: {count}</p>
-      <button onClick={() => setCount((c) => c + 1)}>+</button>
-      <p>Calculation: {calculation}</p>
-    </>
+    <div>
+      <h1>Welcome to Browse Page</h1>
+      <p>Logged in as: {user?.displayName || user?.email}</p>
+      <button onClick={handleSignOut}>Sign Out</button>
+    </div>
   );
-}
+};
+
+export default Browse;
